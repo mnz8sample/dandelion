@@ -1,3 +1,4 @@
+use comrak::nodes::NodeValue;
 use comrak::{nodes::AstNode, parse_document, Arena, ComrakOptions};
 use std::fs::File;
 use std::io::{self, Read};
@@ -35,6 +36,31 @@ pub fn parse_markdown_file2<'a>(file_path: &str, arena: &'a Arena<AstNode<'a>>) 
     Ok(ast)
 }
 
+fn traverse_nodes<'a>(ast: &'a AstNode<'a>, depth: usize) {
+    let node_data = ast.data.borrow();
+    let node_type = match &node_data.value {
+        NodeValue::Text(text) => format!("Text({:?})", text),
+        NodeValue::Paragraph => "Paragraph".to_string(),
+        NodeValue::Heading(heading) => format!("Heading(level {})", heading.level),
+        NodeValue::Table(_) => "Table".to_string(),
+        NodeValue::TableRow(_) => {
+            println!("{}TableRow:", " ".repeat(depth * 2));
+            "TableRow".to_string()
+        }
+        NodeValue::TableCell => "".to_string(),
+        // 添加更多匹配分支来处理不同类型的节点
+        _ => format!("{:?}", node_data.value),
+    };
+
+    // 打印节点类型
+    println!("{}{}", " ".repeat(depth * 2), node_type);
+
+    // 遍历子节点
+    for child in ast.children() {
+        traverse_nodes(child, depth + 1);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -46,7 +72,7 @@ mod test {
         // Properly handle the Result before accessing the AstNode
         match ast_result {
             // Ok(ast) => println!("Root node type: {:?}", ast.data.borrow().value),
-            Ok(ast) => println!("Root node type: {:?}", ast),
+            Ok(ast) => traverse_nodes(ast, 0),
             Err(e) => println!("Error reading markdown file: {}", e),
         }
     }
